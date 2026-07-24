@@ -1,0 +1,64 @@
+# --- Gradle / build outputs（体积大、可本地再生，不要上传）---
+.gradle/
+**/build/
+build/
+.kotlin/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# --- 本机 SDK / IDE 路径（每人机器不同）---
+local.properties
+*.iml
+.idea/
+*.ipr
+*.iws
+
+# --- Cursor / 本地 agent 工作区 ---
+.cursor/
+.claude/
+*.canvas.tsx
+
+# --- 系统垃圾 ---
+.DS_Store
+Thumbs.db
+*~
+
+# --- 签名与密钥（绝对不要上传）---
+*.jks
+*.keystore
+*.pem
+*.p12
+secrets/
+**/keystore.properties
+**/key.properties
+
+# --- 环境变量 / API Key 文件 ---
+.env
+.env.*
+!.env.example
+*.secret
+credentials.json
+google-services.json
+
+# --- Android 产物 ---
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+bin/
+gen/
+out/
+release/
+**/release/
+
+# --- 日志 / 崩溃转储 ---
+*.log
+*.hprof
+*.stackdump
+
+# --- 测试与覆盖率报告（可选忽略；需要 CI 产物时可删掉这两行）---
+**/test-results/
+**/reports/
+**/coverage/
