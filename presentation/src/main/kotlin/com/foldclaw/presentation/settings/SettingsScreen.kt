@@ -29,6 +29,8 @@ import androidx.compose.material3.TopAppBar
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -38,6 +40,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.foldclaw.data.prefs.LlmProviderDefaults
 
@@ -55,6 +60,7 @@ fun SettingsScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     // Key 输入页禁止截屏/录屏进入最近任务预览（审查报告 BYOK）
     DisposableEffect(Unit) {
         val window = context.findActivity()?.window
@@ -62,6 +68,13 @@ fun SettingsScreen(
         onDispose {
             window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }
+    }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.refreshExtras()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     Scaffold(
@@ -207,6 +220,71 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text("清除已保存的 API Key")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("随时唤起", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "1) 设置 → 应用 → 默认应用 → 数字助理应用 → 选 FoldClaw（手势/侧键助理会开麦）\n" +
+                    "2) 下拉快捷设置面板，编辑磁贴，添加「FoldClaw 开麦」\n" +
+                    "三星侧键若仍绑 Bixby，需在侧键设置里单独改。",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            OutlinedButton(
+                onClick = {
+                    runCatching {
+                        context.startActivity(Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS))
+                    }.onFailure {
+                        context.startActivity(Intent(Settings.ACTION_SETTINGS))
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("打开默认应用设置")
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("语音与情报", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "语音输入走百炼 ASR（同 API Key），任务完成后用系统 TTS 播报。通知摘要需开启通知使用权。",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            OutlinedButton(
+                onClick = {
+                    context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    if (state.notificationAccessGranted) "通知使用权：已开启（点此管理）"
+                    else "开启通知使用权（只读摘要）",
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("个人记忆", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "仅你自己使用时可放心保存偏好；也可在对话里说「记住…」。",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            if (state.memories.isEmpty()) {
+                Text("暂无记忆", style = MaterialTheme.typography.bodyMedium)
+            } else {
+                state.memories.forEach { item ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(item.key, style = MaterialTheme.typography.titleSmall)
+                            Text(item.value, style = MaterialTheme.typography.bodySmall)
+                        }
+                        OutlinedButton(onClick = { viewModel.deleteMemory(item.id) }) {
+                            Text("删除")
+                        }
+                    }
                 }
             }
         }

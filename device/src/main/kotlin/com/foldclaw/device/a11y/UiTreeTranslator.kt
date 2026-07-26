@@ -59,6 +59,7 @@ class UiTreeTranslator(
                 isClickable = node.isClickable,
                 isEditable = node.isEditable,
                 isPassword = node.isPassword,
+                isChecked = node.isCheckable && node.isChecked,
                 boundsInScreen = Rect(bounds.left, bounds.top, bounds.right, bounds.bottom),
                 children = childIds,
                 actions = actionNames(node),

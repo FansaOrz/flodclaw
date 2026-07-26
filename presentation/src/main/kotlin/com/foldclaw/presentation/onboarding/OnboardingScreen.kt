@@ -3,6 +3,7 @@ package com.foldclaw.presentation.onboarding
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -21,12 +22,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.foldclaw.device.a11y.FoldClawAccessibilityService
+import com.foldclaw.presentation.theme.FoldClawColors
 
 @Composable
 fun OnboardingScreen(
@@ -49,10 +52,19 @@ fun OnboardingScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(FoldClawColors.Mist, FoldClawColors.Foam, FoldClawColors.MistDeep),
+                ),
+            )
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("FoldClaw", style = MaterialTheme.typography.headlineMedium)
+        Text(
+            "FoldClaw",
+            style = MaterialTheme.typography.displaySmall,
+            color = FoldClawColors.Ink,
+        )
         Text(
             "个人侧载 AI 助手。闹钟/日历可走系统 Intent；读界面、点击、输入等通用 Claw 能力必须开启无障碍。",
             style = MaterialTheme.typography.bodyMedium,

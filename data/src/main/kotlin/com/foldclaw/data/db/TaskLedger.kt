@@ -9,6 +9,8 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.OnConflictStrategy
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import android.content.Context
 import kotlinx.coroutines.flow.Flow
 
@@ -61,13 +63,33 @@ interface TaskEventDao {
     suspend fun deleteTask(taskId: String)
 }
 
-@Database(entities = [TaskEventEntity::class], version = 1, exportSchema = false)
+@Database(
+    entities = [TaskEventEntity::class, UserMemoryEntity::class],
+    version = 2,
+    exportSchema = false,
+)
 abstract class FoldClawDatabase : RoomDatabase() {
     abstract fun taskEventDao(): TaskEventDao
+    abstract fun userMemoryDao(): UserMemoryDao
 
     companion object {
         @Volatile
         private var INSTANCE: FoldClawDatabase? = null
+
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS user_memories (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `key` TEXT NOT NULL,
+                        value TEXT NOT NULL,
+                        epochMs INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+            }
+        }
 
         fun get(context: Context): FoldClawDatabase =
             INSTANCE ?: synchronized(this) {
@@ -78,6 +100,7 @@ abstract class FoldClawDatabase : RoomDatabase() {
                 )
                     // 落盘到 noBackupFilesDir：审查报告要求敏感数据不进备份
                     .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
+                    .addMigrations(MIGRATION_1_2)
                     .build()
                     .also { INSTANCE = it }
             }

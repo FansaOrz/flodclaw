@@ -12,21 +12,26 @@ import com.foldclaw.agent.AgentOrchestrator
 import com.foldclaw.agent.FollowUpTarget
 import com.foldclaw.agent.OrchestratorEvent
 import com.foldclaw.device.fgs.AgentRunSession
+import com.foldclaw.device.speech.MediaAudioRecorder
 import com.foldclaw.domain.agent.TaskHistoryReader
 import com.foldclaw.domain.agent.TaskSummary
 import com.foldclaw.domain.model.Role
 import com.foldclaw.domain.model.TaskState
+import com.foldclaw.domain.speech.SpeechAsrClient
+import com.foldclaw.domain.speech.TtsSpeaker
 import com.foldclaw.domain.tool.ToolOutcome
 import com.foldclaw.policy.ApprovalRequest
 import com.foldclaw.policy.CapabilityEnvelope
 import com.foldclaw.presentation.approval.UiApprovalGate
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -46,6 +51,12 @@ data class ChatUiState(
     /** 进程死亡后发现的中断任务提示；不自动续跑。 */
     val interruptedBanner: String? = null,
     val interruptedInstruction: String? = null,
+    val isRecording: Boolean = false,
+    val isTranscribing: Boolean = false,
+    /** 语音识别结果，UI 消费后应 clearVoiceDraft。 */
+    val voiceDraft: String? = null,
+    /** 下一次识别结果自动发送（助理/磁贴唤起）。 */
+    val autoSendAfterVoice: Boolean = false,
 )
 
 data class ChatMessage(
@@ -78,6 +89,9 @@ class ChatViewModel @Inject constructor(
     private val approvalGate: UiApprovalGate,
     private val historyReader: TaskHistoryReader,
     private val runSession: AgentRunSession,
+    private val asr: SpeechAsrClient,
+    private val recorder: MediaAudioRecorder,
+    private val tts: TtsSpeaker,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChatUiState())
@@ -150,6 +164,75 @@ class ChatViewModel @Inject constructor(
         _uiState.update { it.copy(interruptedBanner = null, interruptedInstruction = null) }
     }
 
+    fun clearVoiceDraft() {
+        _uiState.update { it.copy(voiceDraft = null) }
+    }
+
+    /** 助理/磁贴唤起：标记自动发送，并由 UI 在授权后调用 [startVoiceCapture]。 */
+    fun armAssistVoice(autoSend: Boolean) {
+        _uiState.update { it.copy(autoSendAfterVoice = autoSend) }
+    }
+
+    fun startVoiceCapture() {
+        if (_uiState.value.isRunning || _uiState.value.isTranscribing || _uiState.value.isRecording) return
+        startRecording()
+    }
+
+    fun toggleVoiceCapture() {
+        if (_uiState.value.isRunning || _uiState.value.isTranscribing) return
+        if (_uiState.value.isRecording) {
+            stopAndTranscribe()
+        } else {
+            startRecording()
+        }
+    }
+
+    private fun startRecording() {
+        tts.stop()
+        try {
+            recorder.start()
+            _uiState.update { it.copy(isRecording = true, voiceDraft = null) }
+            Toast.makeText(appContext, "正在听…再说完后点麦克风结束", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Log.w("FoldClaw", "startRecording", e)
+            recorder.cancel()
+            Toast.makeText(appContext, "无法开始录音：${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun stopAndTranscribe() {
+        val file = recorder.stop()
+        val autoSend = _uiState.value.autoSendAfterVoice
+        _uiState.update { it.copy(isRecording = false, isTranscribing = true) }
+        viewModelScope.launch {
+            try {
+                if (file == null) {
+                    Toast.makeText(appContext, "没有录到声音", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                val result = withContext(Dispatchers.IO) { asr.transcribe(file) }
+                file.delete()
+                when (result) {
+                    is com.foldclaw.domain.model.Result.Success -> {
+                        val text = result.data
+                        if (autoSend) {
+                            _uiState.update { it.copy(autoSendAfterVoice = false, voiceDraft = null) }
+                            sendInstruction(text)
+                        } else {
+                            _uiState.update { it.copy(voiceDraft = text) }
+                        }
+                    }
+                    is com.foldclaw.domain.model.Result.Failure -> {
+                        _uiState.update { it.copy(autoSendAfterVoice = false) }
+                        Toast.makeText(appContext, result.error.reason, Toast.LENGTH_LONG).show()
+                    }
+                }
+            } finally {
+                _uiState.update { it.copy(isTranscribing = false) }
+            }
+        }
+    }
+
     fun retryInterrupted() {
         val instruction = _uiState.value.interruptedInstruction ?: return
         dismissInterrupted()
@@ -207,6 +290,9 @@ class ChatViewModel @Inject constructor(
                         followUpLabel = followUpLabelFor(run?.followUpTarget),
                     )
                 }
+                if (finalState == TaskState.COMPLETED) {
+                    tts.speak(reply.text)
+                }
             } finally {
                 runSession.finish(finalState, detail)
             }
@@ -256,9 +342,20 @@ class ChatViewModel @Inject constructor(
     }
 
     fun stop() {
+        if (_uiState.value.isRecording) {
+            recorder.cancel()
+            _uiState.update { it.copy(isRecording = false) }
+        }
+        tts.stop()
         approvalGate.cancelPending()
         orchestrator.cancel()
         runSession.stop()
+    }
+
+    override fun onCleared() {
+        if (_uiState.value.isRecording) recorder.cancel()
+        tts.stop()
+        super.onCleared()
     }
 
     fun toggleHistory() {

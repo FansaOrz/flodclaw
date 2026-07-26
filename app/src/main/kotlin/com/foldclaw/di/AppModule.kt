@@ -5,34 +5,48 @@ import com.foldclaw.agent.AgentOrchestrator
 import com.foldclaw.agent.ToolRegistry
 import com.foldclaw.agent.tools.AlarmSetToolImpl
 import com.foldclaw.agent.tools.CalendarInsertToolImpl
+import com.foldclaw.agent.tools.ForgetFactToolImpl
+import com.foldclaw.agent.tools.GetDeviceStatusToolImpl
+import com.foldclaw.agent.tools.GetNotificationsToolImpl
 import com.foldclaw.agent.tools.GetUiTreeToolImpl
 import com.foldclaw.agent.tools.GetWeatherToolImpl
 import com.foldclaw.agent.tools.GoBackToolImpl
 import com.foldclaw.agent.tools.GoHomeToolImpl
 import com.foldclaw.agent.tools.IntentBackend
+import com.foldclaw.agent.tools.ListMemoriesToolImpl
 import com.foldclaw.agent.tools.OpenAppToolImpl
 import com.foldclaw.agent.tools.OpenSettingsPageToolImpl
+import com.foldclaw.agent.tools.RememberFactToolImpl
 import com.foldclaw.agent.tools.SetRingerModeToolImpl
 import com.foldclaw.agent.tools.SwipeToolImpl
 import com.foldclaw.agent.tools.TapNodeToolImpl
 import com.foldclaw.agent.tools.TypeTextToolImpl
 import com.foldclaw.data.db.RoomLedgerWriter
+import com.foldclaw.data.db.RoomMemoryStore
 import com.foldclaw.data.db.TaskHistoryReaderImpl
-import com.foldclaw.data.keystore.KeyVault
-import com.foldclaw.data.prefs.TrustedToolsStoreImpl
-import com.foldclaw.data.weather.OpenMeteoWeatherClient
+import com.foldclaw.data.speech.DashScopeAsrClient
 import com.foldclaw.device.audio.RingerModeBackendImpl
 import com.foldclaw.device.controller.A11yDeviceController
 import com.foldclaw.device.intent.AppLaunchBackendImpl
 import com.foldclaw.device.intent.IntentBackendImpl
+import com.foldclaw.device.notify.NotificationSummaryBackendImpl
+import com.foldclaw.device.speech.AndroidTtsSpeaker
+import com.foldclaw.device.status.DeviceStatusBackendImpl
 import com.foldclaw.domain.agent.LedgerWriter
 import com.foldclaw.domain.agent.TaskHistoryReader
 import com.foldclaw.domain.agent.TrustedToolsStore
 import com.foldclaw.domain.device.DeviceController
 import com.foldclaw.domain.llm.ProviderGateway
+import com.foldclaw.domain.memory.MemoryStore
+import com.foldclaw.domain.speech.SpeechAsrClient
+import com.foldclaw.domain.speech.TtsSpeaker
 import com.foldclaw.domain.tool.AppLaunchBackend
+import com.foldclaw.domain.tool.DeviceStatusBackend
+import com.foldclaw.domain.tool.NotificationSummaryBackend
 import com.foldclaw.domain.tool.RingerModeBackend
 import com.foldclaw.domain.tool.WeatherBackend
+import com.foldclaw.data.prefs.TrustedToolsStoreImpl
+import com.foldclaw.data.weather.OpenMeteoWeatherClient
 import com.foldclaw.policy.ApprovalGate
 import com.foldclaw.policy.ApprovalManager
 import com.foldclaw.policy.PolicyFactory
@@ -81,6 +95,26 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideDeviceStatusBackend(impl: DeviceStatusBackendImpl): DeviceStatusBackend = impl
+
+    @Provides
+    @Singleton
+    fun provideNotificationSummaryBackend(impl: NotificationSummaryBackendImpl): NotificationSummaryBackend = impl
+
+    @Provides
+    @Singleton
+    fun provideMemoryStore(impl: RoomMemoryStore): MemoryStore = impl
+
+    @Provides
+    @Singleton
+    fun provideSpeechAsrClient(impl: DashScopeAsrClient): SpeechAsrClient = impl
+
+    @Provides
+    @Singleton
+    fun provideTtsSpeaker(impl: AndroidTtsSpeaker): TtsSpeaker = impl
+
+    @Provides
+    @Singleton
     fun provideLedgerWriter(impl: RoomLedgerWriter): LedgerWriter = impl
 
     @Provides
@@ -103,6 +137,9 @@ object AppModule {
         weather: WeatherBackend,
         ringer: RingerModeBackend,
         device: DeviceController,
+        memory: MemoryStore,
+        deviceStatus: DeviceStatusBackend,
+        notifications: NotificationSummaryBackend,
     ): ToolRegistry = ToolRegistry().apply {
         register(CalendarInsertToolImpl(backend))
         register(AlarmSetToolImpl(backend))
@@ -110,6 +147,11 @@ object AppModule {
         register(OpenSettingsPageToolImpl(appLaunch))
         register(SetRingerModeToolImpl(ringer))
         register(GetWeatherToolImpl(weather))
+        register(GetDeviceStatusToolImpl(deviceStatus))
+        register(GetNotificationsToolImpl(notifications))
+        register(RememberFactToolImpl(memory))
+        register(ForgetFactToolImpl(memory))
+        register(ListMemoriesToolImpl(memory))
         register(GetUiTreeToolImpl(device))
         register(TapNodeToolImpl(device))
         register(TypeTextToolImpl(device))
@@ -130,6 +172,7 @@ object AppModule {
         approvalGate: ApprovalGate,
         trustedTools: TrustedToolsStore,
         lock: ActiveRunLock,
+        memoryStore: MemoryStore,
     ): AgentOrchestrator = AgentOrchestrator(
         provider = provider,
         tools = tools,
@@ -140,5 +183,6 @@ object AppModule {
         approvalGate = approvalGate,
         trustedTools = trustedTools,
         lock = lock,
+        memoryStore = memoryStore,
     )
 }

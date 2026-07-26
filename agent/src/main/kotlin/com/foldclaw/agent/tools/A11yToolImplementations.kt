@@ -20,6 +20,7 @@ import com.foldclaw.domain.tool.Tool
 import com.foldclaw.domain.tool.ToolContext
 import com.foldclaw.domain.tool.ToolOutcome
 import com.foldclaw.domain.tool.TypeTextTool
+import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -104,16 +105,32 @@ class TapNodeToolImpl(
                 ),
             )
         }
+        val beforeFp = uiFingerprint(snap)
+        val beforeChecked = node.isChecked
         return when (val res = device.clickNode(node.id)) {
-            is Result.Success -> Result.Success(
-                ToolOutcome.SideEffect(
-                    summary = "已点击 [${node.id}] ${label ?: node.resourceId ?: ""}".trim(),
-                    expectedPackageNames = snap.packageName?.let { setOf(it) } ?: emptySet(),
-                    expectedText = null,
-                    irreversible = false,
-                    launchedByIntent = false,
-                ),
-            )
+            is Result.Success -> {
+                delay(350)
+                val after = device.observe().getOrNull()
+                val afterFp = after?.let { uiFingerprint(it) }
+                val sameNode = after?.let { resolveNode(it, node.id, label) }
+                val checkedFlip = sameNode != null && sameNode.isChecked != beforeChecked
+                val changed = afterFp != null && afterFp != beforeFp
+                val verify = when {
+                    checkedFlip -> "校验：开关状态 ${beforeChecked}→${sameNode!!.isChecked}"
+                    changed -> "校验：界面已变化（包=${after?.packageName}）"
+                    after == null -> "校验：点击后无法复读界面，请再 get_ui_tree"
+                    else -> "校验：界面几乎未变，可能未点中或需滑动后重试"
+                }
+                Result.Success(
+                    ToolOutcome.SideEffect(
+                        summary = "已点击 [${node.id}] ${label ?: node.resourceId ?: ""} · $verify".trim(),
+                        expectedPackageNames = snap.packageName?.let { setOf(it) } ?: emptySet(),
+                        expectedText = label,
+                        irreversible = false,
+                        launchedByIntent = false,
+                    ),
+                )
+            }
             is Result.Failure -> Result.Success(ToolOutcome.Failure(res.error))
         }
     }
@@ -261,14 +278,56 @@ private fun resolveNode(snap: ObservationSnapshot, nodeId: String?, text: String
     if (!nodeId.isNullOrBlank()) {
         snap.nodes[nodeId]?.let { return it }
     }
-    if (!text.isNullOrBlank()) {
-        val q = text.trim()
-        return snap.nodes.values.firstOrNull {
-            it.text?.contains(q, ignoreCase = true) == true ||
-                it.contentDescription?.contains(q, ignoreCase = true) == true
-        } ?: snap.nodes.values.firstOrNull {
-            it.resourceId?.contains(q, ignoreCase = true) == true
-        }
+    if (text.isNullOrBlank()) return null
+    val q = text.trim()
+    val scored = snap.nodes.values.mapNotNull { node ->
+        val score = matchScore(node, q) ?: return@mapNotNull null
+        node to score
     }
-    return null
+    if (scored.isEmpty()) return null
+    return scored.maxWithOrNull(
+        compareBy<Pair<UiNode, Int>> { it.second }
+            .thenByDescending { if (it.first.isClickable) 1 else 0 }
+            .thenByDescending {
+                val b = it.first.boundsInScreen
+                if (b == null) 0 else b.width * b.height
+            },
+    )?.first
+}
+
+/** 精确 > 前缀 > 包含；resourceId 权重略低。 */
+private fun matchScore(node: UiNode, q: String): Int? {
+    val fields = listOf(
+        node.text to 100,
+        node.contentDescription to 90,
+        node.resourceId to 60,
+    )
+    var best: Int? = null
+    for ((raw, base) in fields) {
+        val v = raw?.trim().orEmpty()
+        if (v.isEmpty()) continue
+        val score = when {
+            v.equals(q, ignoreCase = true) -> base + 30
+            v.startsWith(q, ignoreCase = true) || q.startsWith(v, ignoreCase = true) -> base + 15
+            v.contains(q, ignoreCase = true) -> base
+            else -> continue
+        }
+        if (best == null || score > best) best = score
+    }
+    return best
+}
+
+private fun uiFingerprint(snap: ObservationSnapshot): String {
+    val parts = snap.nodes.values
+        .filterNot { it.isPassword }
+        .take(80)
+        .map {
+            listOf(
+                it.text.orEmpty(),
+                it.contentDescription.orEmpty(),
+                it.resourceId.orEmpty(),
+                if (it.isChecked) "1" else "0",
+            ).joinToString("|")
+        }
+    return "${snap.packageName}|${snap.rootId}|${parts.hashCode()}"
 }

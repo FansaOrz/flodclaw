@@ -18,6 +18,8 @@ data class UiNode(
     val isClickable: Boolean,
     val isEditable: Boolean,
     val isPassword: Boolean,
+    /** 开关/复选框等选中态，便于多步 A11y 校验。 */
+    val isChecked: Boolean = false,
     val boundsInScreen: Rect?,
     val children: List<String> = emptyList(),
     val actions: Set<String> = emptySet(),
@@ -71,6 +73,7 @@ data class ObservationSnapshot(
             val flags = buildString {
                 if (node.isClickable) append("C ")
                 if (node.isEditable) append("E ")
+                if (node.isChecked) append("ON ")
             }.trim()
             sb.appendLine("$indent- [${node.id}] $label $flags")
         }

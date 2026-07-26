@@ -6,7 +6,10 @@ import com.foldclaw.data.keystore.KeyVault
 import com.foldclaw.data.llm.ProviderRouter
 import com.foldclaw.data.prefs.LlmProviderDefaults
 import com.foldclaw.data.prefs.ProviderSettingsStore
+import com.foldclaw.domain.memory.MemoryItem
+import com.foldclaw.domain.memory.MemoryStore
 import com.foldclaw.domain.model.Result
+import com.foldclaw.domain.tool.NotificationSummaryBackend
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +30,8 @@ data class SettingsUiState(
     val statusIsError: Boolean = false,
     val isSaving: Boolean = false,
     val isTesting: Boolean = false,
+    val memories: List<MemoryItem> = emptyList(),
+    val notificationAccessGranted: Boolean = false,
 )
 
 @HiltViewModel
@@ -34,6 +39,8 @@ class SettingsViewModel @Inject constructor(
     private val settingsStore: ProviderSettingsStore,
     private val keyVault: KeyVault,
     private val providerRouter: ProviderRouter,
+    private val memoryStore: MemoryStore,
+    private val notificationBackend: NotificationSummaryBackend,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -52,9 +59,32 @@ class SettingsViewModel @Inject constructor(
                         modelId = s.modelId,
                         hasApiKey = hasKey,
                         apiKeyInput = if (hasKey && it.apiKeyInput.isBlank()) "" else it.apiKeyInput,
+                        notificationAccessGranted = notificationBackend.isAccessGranted(),
                     )
                 }
             }
+        }
+        refreshMemories()
+    }
+
+    fun refreshExtras() {
+        _uiState.update {
+            it.copy(notificationAccessGranted = notificationBackend.isAccessGranted())
+        }
+        refreshMemories()
+    }
+
+    fun refreshMemories() {
+        viewModelScope.launch {
+            val items = memoryStore.list(50)
+            _uiState.update { it.copy(memories = items) }
+        }
+    }
+
+    fun deleteMemory(id: Long) {
+        viewModelScope.launch {
+            memoryStore.deleteById(id)
+            refreshMemories()
         }
     }
 
