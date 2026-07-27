@@ -45,6 +45,8 @@ data class CapabilityEnvelope(
             "open_settings_page",
             "set_ringer_mode",
             "get_weather",
+            "web_search",
+            "play_music",
             "get_device_status",
             "get_notifications",
             "remember_fact",

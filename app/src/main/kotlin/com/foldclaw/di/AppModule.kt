@@ -16,15 +16,22 @@ import com.foldclaw.agent.tools.IntentBackend
 import com.foldclaw.agent.tools.ListMemoriesToolImpl
 import com.foldclaw.agent.tools.OpenAppToolImpl
 import com.foldclaw.agent.tools.OpenSettingsPageToolImpl
+import com.foldclaw.agent.tools.PlayMusicToolImpl
 import com.foldclaw.agent.tools.RememberFactToolImpl
 import com.foldclaw.agent.tools.SetRingerModeToolImpl
 import com.foldclaw.agent.tools.SwipeToolImpl
 import com.foldclaw.agent.tools.TapNodeToolImpl
 import com.foldclaw.agent.tools.TypeTextToolImpl
+import com.foldclaw.agent.tools.WebSearchToolImpl
+import com.foldclaw.data.backup.JsonDataBackupService
 import com.foldclaw.data.db.RoomLedgerWriter
 import com.foldclaw.data.db.RoomMemoryStore
 import com.foldclaw.data.db.TaskHistoryReaderImpl
+import com.foldclaw.data.music.NetEaseMusicClient
+import com.foldclaw.data.prefs.TrustedToolsStoreImpl
+import com.foldclaw.data.search.DuckDuckGoSearchClient
 import com.foldclaw.data.speech.DashScopeAsrClient
+import com.foldclaw.data.weather.OpenMeteoWeatherClient
 import com.foldclaw.device.audio.RingerModeBackendImpl
 import com.foldclaw.device.controller.A11yDeviceController
 import com.foldclaw.device.intent.AppLaunchBackendImpl
@@ -35,6 +42,7 @@ import com.foldclaw.device.status.DeviceStatusBackendImpl
 import com.foldclaw.domain.agent.LedgerWriter
 import com.foldclaw.domain.agent.TaskHistoryReader
 import com.foldclaw.domain.agent.TrustedToolsStore
+import com.foldclaw.domain.backup.DataBackupService
 import com.foldclaw.domain.device.DeviceController
 import com.foldclaw.domain.llm.ProviderGateway
 import com.foldclaw.domain.memory.MemoryStore
@@ -42,11 +50,11 @@ import com.foldclaw.domain.speech.SpeechAsrClient
 import com.foldclaw.domain.speech.TtsSpeaker
 import com.foldclaw.domain.tool.AppLaunchBackend
 import com.foldclaw.domain.tool.DeviceStatusBackend
+import com.foldclaw.domain.tool.MusicPlaybackBackend
 import com.foldclaw.domain.tool.NotificationSummaryBackend
 import com.foldclaw.domain.tool.RingerModeBackend
 import com.foldclaw.domain.tool.WeatherBackend
-import com.foldclaw.data.prefs.TrustedToolsStoreImpl
-import com.foldclaw.data.weather.OpenMeteoWeatherClient
+import com.foldclaw.domain.tool.WebSearchBackend
 import com.foldclaw.policy.ApprovalGate
 import com.foldclaw.policy.ApprovalManager
 import com.foldclaw.policy.PolicyFactory
@@ -91,6 +99,14 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideWebSearchBackend(impl: DuckDuckGoSearchClient): WebSearchBackend = impl
+
+    @Provides
+    @Singleton
+    fun provideMusicPlaybackBackend(impl: NetEaseMusicClient): MusicPlaybackBackend = impl
+
+    @Provides
+    @Singleton
     fun provideRingerModeBackend(impl: RingerModeBackendImpl): RingerModeBackend = impl
 
     @Provides
@@ -104,6 +120,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideMemoryStore(impl: RoomMemoryStore): MemoryStore = impl
+
+    @Provides
+    @Singleton
+    fun provideDataBackupService(impl: JsonDataBackupService): DataBackupService = impl
 
     @Provides
     @Singleton
@@ -135,6 +155,8 @@ object AppModule {
         backend: IntentBackend,
         appLaunch: AppLaunchBackend,
         weather: WeatherBackend,
+        webSearch: WebSearchBackend,
+        music: MusicPlaybackBackend,
         ringer: RingerModeBackend,
         device: DeviceController,
         memory: MemoryStore,
@@ -147,6 +169,8 @@ object AppModule {
         register(OpenSettingsPageToolImpl(appLaunch))
         register(SetRingerModeToolImpl(ringer))
         register(GetWeatherToolImpl(weather))
+        register(WebSearchToolImpl(webSearch))
+        register(PlayMusicToolImpl(music))
         register(GetDeviceStatusToolImpl(deviceStatus))
         register(GetNotificationsToolImpl(notifications))
         register(RememberFactToolImpl(memory))

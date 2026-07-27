@@ -307,6 +307,8 @@ class AgentProgressHud @Inject constructor() {
             "set_alarm" -> "设置闹钟"
             "create_calendar_event" -> "创建日程"
             "get_weather" -> "查询天气"
+            "web_search" -> "联网搜索"
+            "play_music" -> "播放音乐"
             else -> name
         }
     }

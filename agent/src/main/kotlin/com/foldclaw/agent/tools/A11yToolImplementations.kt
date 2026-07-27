@@ -167,7 +167,10 @@ class TypeTextToolImpl(
         return when (val res = device.setText(node.id, text)) {
             is Result.Success -> Result.Success(
                 ToolOutcome.SideEffect(
-                    summary = "已在 [${node.id}] 输入 ${text.take(40)}",
+                    summary = buildString {
+                        append("已在 [${node.id}] 输入 ${text.take(40)}。")
+                        append("若未出现结果，下一步 get_ui_tree，tap_node 点「搜索」或第一条匹配结果/播放。")
+                    },
                     expectedPackageNames = snap.packageName?.let { setOf(it) } ?: emptySet(),
                     expectedText = text.take(20),
                     irreversible = false,

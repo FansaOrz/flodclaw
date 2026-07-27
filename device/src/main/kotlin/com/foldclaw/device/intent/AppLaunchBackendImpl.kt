@@ -176,6 +176,9 @@ class AppLaunchBackendImpl @Inject constructor(
             "相册" to "com.sec.android.gallery3d",
             "文件" to "com.sec.android.app.myfiles",
             "网易云音乐" to "com.netease.cloudmusic",
+            "网易云" to "com.netease.cloudmusic",
+            "QQ音乐" to "com.tencent.qqmusic",
+            "qq音乐" to "com.tencent.qqmusic",
             "哔哩哔哩" to "tv.danmaku.bili",
             "B站" to "tv.danmaku.bili",
         )

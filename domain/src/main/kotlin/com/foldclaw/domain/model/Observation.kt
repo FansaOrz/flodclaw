@@ -55,12 +55,15 @@ data class ObservationSnapshot(
 
     /**
      * 把 UI 树裁剪成喂给模型的精简文本。隐藏密码节点，限制深度与文本长度。
+     * 优先保留：可编辑框、搜索/播放相关、可点击短标签，避免首页长列表把顶栏「搜索」挤掉。
      */
     fun toModelContext(maxNodes: Int = 200, maxTextLength: Int = 80): String {
         val sb = StringBuilder()
         sb.append("Package: $packageName | Display: $displayId | Locked: $isLocked\n")
+        sb.append("提示：优先看带 E（可编辑）或文案含「搜索/播放」的节点；长列表项可忽略。\n")
         val visibleNodes = nodes.values
             .filterNot { it.isPassword }
+            .sortedByDescending { nodePriority(it) }
             .take(maxNodes)
         for (node in visibleNodes) {
             val depth = depthOf(node)
@@ -78,6 +81,22 @@ data class ObservationSnapshot(
             sb.appendLine("$indent- [${node.id}] $label $flags")
         }
         return sb.toString()
+    }
+
+    private fun nodePriority(node: UiNode): Int {
+        val label = listOfNotNull(node.text, node.contentDescription, node.resourceId)
+            .joinToString(" ")
+            .lowercase()
+        var score = 0
+        if (node.isEditable) score += 1000
+        if (label.contains("搜索") || label.contains("search") || label.contains("查询")) score += 800
+        if (label.contains("播放") || label.contains("play") || label.contains("听")) score += 500
+        if (label.contains("歌手") || label.contains("单曲") || label.contains("歌单")) score += 300
+        if (node.isClickable && label.isNotBlank() && label.length <= 16) score += 120
+        if (node.isClickable) score += 40
+        // 顶栏通常 y 更小
+        node.boundsInScreen?.let { score += ((4000 - it.top).coerceIn(0, 4000) / 40) }
+        return score
     }
 
     private fun depthOf(node: UiNode): Int {

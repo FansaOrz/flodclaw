@@ -13,11 +13,14 @@ import com.foldclaw.agent.FollowUpTarget
 import com.foldclaw.agent.OrchestratorEvent
 import com.foldclaw.device.fgs.AgentRunSession
 import com.foldclaw.device.speech.MediaAudioRecorder
+import com.foldclaw.domain.agent.LedgerWriter
+import com.foldclaw.domain.agent.TaskDetail
 import com.foldclaw.domain.agent.TaskHistoryReader
 import com.foldclaw.domain.agent.TaskSummary
 import com.foldclaw.domain.model.Role
 import com.foldclaw.domain.model.TaskState
 import com.foldclaw.domain.speech.SpeechAsrClient
+import com.foldclaw.data.prefs.ProviderSettingsStore
 import com.foldclaw.domain.speech.TtsSpeaker
 import com.foldclaw.domain.tool.ToolOutcome
 import com.foldclaw.policy.ApprovalRequest
@@ -88,10 +91,12 @@ class ChatViewModel @Inject constructor(
     private val orchestrator: AgentOrchestrator,
     private val approvalGate: UiApprovalGate,
     private val historyReader: TaskHistoryReader,
+    private val ledger: LedgerWriter,
     private val runSession: AgentRunSession,
     private val asr: SpeechAsrClient,
     private val recorder: MediaAudioRecorder,
     private val tts: TtsSpeaker,
+    private val settingsStore: ProviderSettingsStore,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChatUiState())
@@ -156,6 +161,7 @@ class ChatViewModel @Inject constructor(
                     )
                 }
             }
+            restoreLastConversation()
             refreshHistory()
         }
     }
@@ -280,6 +286,7 @@ class ChatViewModel @Inject constructor(
                     text = stateToText(finalState, detail),
                     isUser = false,
                 )
+                runCatching { ledger.writeReply(taskId, reply.text) }
                 _uiState.update {
                     it.copy(
                         messages = it.messages + reply,
@@ -290,7 +297,7 @@ class ChatViewModel @Inject constructor(
                         followUpLabel = followUpLabelFor(run?.followUpTarget),
                     )
                 }
-                if (finalState == TaskState.COMPLETED) {
+                if (finalState == TaskState.COMPLETED && settingsStore.current().ttsSpeakResults) {
                     tts.speak(reply.text)
                 }
             } finally {
@@ -368,12 +375,81 @@ class ChatViewModel @Inject constructor(
         _uiState.update { it.copy(showHistory = false) }
     }
 
+    /** 打开历史任务详情：替换当前聊天区为该次对话，并展示步骤。 */
+    fun openHistoryItem(taskId: String) {
+        viewModelScope.launch {
+            val detail = historyReader.taskDetail(taskId) ?: return@launch
+            val state = detail.finalState?.let { runCatching { TaskState.valueOf(it) }.getOrNull() }
+            _uiState.update {
+                it.copy(
+                    showHistory = false,
+                    messages = detail.toChatMessages(state),
+                    timeline = detail.toTimeline(),
+                    lastTaskState = state,
+                    followUpTarget = null,
+                    followUpLabel = null,
+                    pendingApproval = null,
+                )
+            }
+        }
+    }
+
+    private suspend fun restoreLastConversation() {
+        val details = historyReader.recentConversation(20)
+        if (details.isEmpty()) return
+        val messages = details.flatMap { detail ->
+            val state = detail.finalState?.let { runCatching { TaskState.valueOf(it) }.getOrNull() }
+            detail.toChatMessages(state)
+        }
+        val last = details.last()
+        val lastState = last.finalState?.let { runCatching { TaskState.valueOf(it) }.getOrNull() }
+        _uiState.update {
+            it.copy(
+                messages = messages,
+                timeline = last.toTimeline(),
+                lastTaskState = lastState,
+            )
+        }
+    }
+
     private fun refreshHistory() {
         viewModelScope.launch {
             val items = historyReader.recentTasks(40).map { it.toUi() }
             _uiState.update { it.copy(history = items) }
         }
     }
+
+    private fun TaskDetail.toChatMessages(state: TaskState?): List<ChatMessage> {
+        val user = ChatMessage(
+            id = "${taskId}_user",
+            role = Role.USER,
+            text = instruction,
+            isUser = true,
+        )
+        val assistantText = when {
+            replyPersisted && !replyText.isNullOrBlank() -> replyText!!
+            state != null -> stateToText(state, replyText)
+            !replyText.isNullOrBlank() -> replyText!!
+            else -> "（无回复记录）"
+        }
+        val assistant = ChatMessage(
+            id = "${taskId}_assistant",
+            role = Role.ASSISTANT,
+            text = assistantText,
+            isUser = false,
+        )
+        return listOf(user, assistant)
+    }
+
+    private fun TaskDetail.toTimeline(): List<TimelineItem> =
+        steps.map { step ->
+            TimelineItem(
+                id = "${taskId}_s${step.step}",
+                step = step.step,
+                label = step.outcome.ifBlank { step.toolName },
+                status = if (step.ok) TimelineStatus.OK else TimelineStatus.FAIL,
+            )
+        }
 
     private fun TaskSummary.toUi(): HistoryUiItem {
         val time = timeFmt.format(Date(lastEpochMs))

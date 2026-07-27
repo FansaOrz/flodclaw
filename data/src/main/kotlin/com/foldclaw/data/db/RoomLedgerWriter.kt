@@ -32,7 +32,7 @@ class RoomLedgerWriter @Inject constructor(
             stateBefore = null,
             stateAfter = TaskState.RUNNING.name,
             step = 0,
-            outcome = Redactor.redact(instruction, maxLen = 200),
+            outcome = Redactor.redact(instruction, maxLen = 1000),
         )
     }
 
@@ -86,6 +86,17 @@ class RoomLedgerWriter @Inject constructor(
             stateAfter = null,
             step = step,
             outcome = if (ok) "verified" else "verification_failed",
+        )
+    }
+
+    override suspend fun writeReply(taskId: String, message: String) {
+        append(
+            taskId,
+            type = "reply",
+            stateBefore = null,
+            stateAfter = null,
+            step = 0,
+            outcome = Redactor.redact(message, maxLen = 2000),
         )
     }
 

@@ -2,7 +2,9 @@ package com.foldclaw.data.db
 
 import android.content.Context
 import com.foldclaw.domain.agent.InterruptedTask
+import com.foldclaw.domain.agent.TaskDetail
 import com.foldclaw.domain.agent.TaskHistoryReader
+import com.foldclaw.domain.agent.TaskStepDetail
 import com.foldclaw.domain.agent.TaskSummary
 import com.foldclaw.domain.model.TaskState
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -28,6 +30,19 @@ class TaskHistoryReaderImpl @Inject constructor(
     override suspend fun recentTasks(limit: Int): List<TaskSummary> {
         val ids = dao.recentTaskIds(limit)
         return ids.map { taskId -> summarize(taskId) }
+    }
+
+    override suspend fun taskDetail(taskId: String): TaskDetail? {
+        val events = dao.getTimeline(taskId)
+        if (events.isEmpty()) return null
+        return detailFromEvents(taskId, events)
+    }
+
+    override suspend fun recentConversation(limit: Int): List<TaskDetail> {
+        // recentTaskIds 为新→旧；对话展示需要旧→新
+        return dao.recentTaskIds(limit)
+            .asReversed()
+            .mapNotNull { taskId -> taskDetail(taskId) }
     }
 
     override suspend fun markStaleRunningAsInterrupted(): Int {
@@ -89,6 +104,36 @@ class TaskHistoryReaderImpl @Inject constructor(
             finalState = finalState,
             lastEpochMs = lastMs,
             toolNames = tools,
+        )
+    }
+
+    private fun detailFromEvents(taskId: String, events: List<TaskEventEntity>): TaskDetail {
+        val instruction = events.firstOrNull { it.type == "start" }?.outcome
+            ?.takeIf { it.isNotBlank() }
+            ?: "(无指令)"
+        val finalState = events.lastOrNull { it.stateAfter.isNotBlank() }?.stateAfter
+        val persistedReply = events.lastOrNull { it.type == "reply" }?.outcome?.takeIf { it.isNotBlank() }
+        val fallbackReply = events.lastOrNull { it.type == "tool" }?.outcome?.takeIf { it.isNotBlank() }
+            ?: events.lastOrNull { !it.errorMessage.isNullOrBlank() }?.errorMessage
+        val steps = events
+            .filter { it.type == "tool" && !it.toolName.isNullOrBlank() }
+            .mapIndexed { index, e ->
+                TaskStepDetail(
+                    step = index + 1,
+                    toolName = e.toolName.orEmpty(),
+                    outcome = e.outcome?.takeIf { it.isNotBlank() } ?: e.toolName.orEmpty(),
+                    ok = e.errorMessage.isNullOrBlank(),
+                )
+            }
+        val lastMs = events.maxOfOrNull { it.epochMs } ?: 0L
+        return TaskDetail(
+            taskId = taskId,
+            instruction = instruction,
+            finalState = finalState,
+            replyText = persistedReply ?: fallbackReply,
+            replyPersisted = persistedReply != null,
+            lastEpochMs = lastMs,
+            steps = steps,
         )
     }
 

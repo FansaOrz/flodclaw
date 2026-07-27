@@ -31,6 +31,9 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.provider.Settings
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -45,6 +48,9 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.foldclaw.data.prefs.LlmProviderDefaults
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 private fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
@@ -61,6 +67,17 @@ fun SettingsScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    BackHandler(onBack = onBack)
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        if (uri != null) viewModel.exportBackup(uri)
+    }
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) viewModel.importBackup(uri)
+    }
     // Key 输入页禁止截屏/录屏进入最近任务预览（审查报告 BYOK）
     DisposableEffect(Unit) {
         val window = context.findActivity()?.window
@@ -247,9 +264,26 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(12.dp))
             Text("语音与情报", style = MaterialTheme.typography.titleSmall)
             Text(
-                "语音输入走百炼 ASR（同 API Key），任务完成后用系统 TTS 播报。通知摘要需开启通知使用权。",
+                "语音输入走百炼 ASR（同 API Key）。通知摘要需开启通知使用权。",
                 style = MaterialTheme.typography.bodySmall,
             )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("任务结果 TTS 播报", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        if (state.ttsSpeakResults) "完成后用系统语音念出结果" else "完成后仅显示文字，不播报",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Switch(
+                    checked = state.ttsSpeakResults,
+                    onCheckedChange = viewModel::onTtsSpeakResultsChange,
+                )
+            }
             OutlinedButton(
                 onClick = {
                     context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
@@ -260,6 +294,39 @@ fun SettingsScreen(
                     if (state.notificationAccessGranted) "通知使用权：已开启（点此管理）"
                     else "开启通知使用权（只读摘要）",
                 )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("数据备份（跨重装兼容）", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "Android 会按包名隔离数据：卸载、清数据、或签名不一致的覆盖安装都会清空记忆。" +
+                    "请定期导出 JSON；换机/重装后导入即可恢复。" +
+                    "API Key 因系统 Keystore 无法随备份迁移，需重新填写。" +
+                    "日常更新请用覆盖安装（adb install -r），不要先卸载。",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        val stamp = SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault())
+                            .format(Date())
+                        exportLauncher.launch("foldclaw_backup_$stamp.json")
+                    },
+                    modifier = Modifier.weight(1f),
+                    enabled = !state.isBackingUp,
+                ) {
+                    Text(if (state.isBackingUp) "处理中…" else "导出备份")
+                }
+                OutlinedButton(
+                    onClick = { importLauncher.launch(arrayOf("application/json", "text/*", "*/*")) },
+                    modifier = Modifier.weight(1f),
+                    enabled = !state.isBackingUp,
+                ) {
+                    Text("导入备份")
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))

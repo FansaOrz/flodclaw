@@ -73,4 +73,6 @@ class FakeLedgerWriter : com.foldclaw.domain.agent.LedgerWriter {
     }
 
     override suspend fun writeTool(taskId: String, step: Int, toolName: String, outcome: String) = Unit
+
+    override suspend fun writeReply(taskId: String, message: String) = Unit
 }

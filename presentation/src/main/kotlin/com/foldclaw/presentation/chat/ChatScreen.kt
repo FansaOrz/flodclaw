@@ -139,7 +139,10 @@ fun ChatScreen(
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surface,
         ) {
-            HistorySheet(items = uiState.history)
+            HistorySheet(
+                items = uiState.history,
+                onItemClick = viewModel::openHistoryItem,
+            )
         }
     }
 
@@ -518,7 +521,10 @@ private fun EmptyHint() {
 }
 
 @Composable
-private fun HistorySheet(items: List<HistoryUiItem>) {
+private fun HistorySheet(
+    items: List<HistoryUiItem>,
+    onItemClick: (String) -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -527,6 +533,11 @@ private fun HistorySheet(items: List<HistoryUiItem>) {
             .padding(bottom = 24.dp),
     ) {
         Text("历史任务", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "点选一条可查看该次对话详情",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Spacer(modifier = Modifier.height(8.dp))
         if (items.isEmpty()) {
             Text("还没有任务记录", style = MaterialTheme.typography.bodyMedium)
@@ -536,6 +547,7 @@ private fun HistorySheet(items: List<HistoryUiItem>) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clickable { onItemClick(item.taskId) }
                             .padding(vertical = 8.dp),
                     ) {
                         Text(item.title, style = MaterialTheme.typography.bodyLarge)

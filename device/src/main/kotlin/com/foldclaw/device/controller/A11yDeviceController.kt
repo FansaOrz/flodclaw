@@ -147,11 +147,14 @@ class A11yDeviceController @Inject constructor(
         val args = Bundle().apply {
             putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
         }
-        return if (live.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) {
-            Result.Success(Unit)
-        } else {
-            Result.Failure(DomainError(ErrorKind.ActionFailed, "SET_TEXT 失败"))
+        if (!live.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) {
+            return Result.Failure(DomainError(ErrorKind.ActionFailed, "SET_TEXT 失败"))
         }
+        // 搜索框场景：尽量触发 IME 搜索/完成，减少「只输入不搜索」
+        runCatching {
+            live.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.id)
+        }
+        return Result.Success(Unit)
     }
 
     override suspend fun globalAction(action: GlobalAction): Result<Unit> {

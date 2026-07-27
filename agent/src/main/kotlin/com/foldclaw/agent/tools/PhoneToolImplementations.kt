@@ -15,6 +15,10 @@ import com.foldclaw.domain.tool.Tool
 import com.foldclaw.domain.tool.ToolContext
 import com.foldclaw.domain.tool.ToolOutcome
 import com.foldclaw.domain.tool.WeatherBackend
+import com.foldclaw.domain.tool.WebSearchBackend
+import com.foldclaw.domain.tool.WebSearchTool
+import com.foldclaw.domain.tool.MusicPlaybackBackend
+import com.foldclaw.domain.tool.PlayMusicTool
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -43,7 +47,13 @@ class OpenAppToolImpl(
                     summary = buildString {
                         append("已打开「${resolved.label}」（${resolved.packageName}）。")
                         append("若用户目标不止打开应用，下一步必须 get_ui_tree 并继续操作，不要结束。")
-                    },
+                        if (resolved.packageName.contains("cloudmusic") ||
+                            resolved.packageName.contains("qqmusic") ||
+                            resolved.label.contains("网易云") ||
+                            resolved.label.contains("QQ音乐")
+                        ) {
+                            append("听歌优先用 play_music；若必须点按：找搜索框 type_text，不要乱滑首页。")
+                        }                    },
                     expectedPackageNames = setOf(resolved.packageName),
                     expectedText = null,
                     irreversible = false,
@@ -158,5 +168,61 @@ class GetWeatherToolImpl(
         )
     } catch (_: Exception) {
         null
+    }
+}
+
+class WebSearchToolImpl(
+    private val backend: WebSearchBackend,
+) : Tool {
+    override val descriptor: ToolDescriptor = WebSearchTool.descriptor
+    override val riskLevel: RiskLevel = RiskLevel.READ_ONLY
+
+    override suspend fun execute(ctx: ToolContext, argumentsJson: String): Result<ToolOutcome> {
+        val query = try {
+            val o = Json.decodeFromString<JsonObject>(argumentsJson.ifBlank { "{}" })
+            o["query"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() && it != "null" }
+        } catch (_: Exception) {
+            null
+        } ?: return Result.Failure(DomainError(ErrorKind.ProviderInvalidResponse, "缺少 query"))
+
+        return when (val res = backend.search(query.trim())) {
+            is Result.Success -> Result.Success(ToolOutcome.Text(res.data))
+            is Result.Failure -> Result.Success(ToolOutcome.Failure(res.error))
+        }
+    }
+}
+
+class PlayMusicToolImpl(
+    private val backend: MusicPlaybackBackend,
+) : Tool {
+    override val descriptor: ToolDescriptor = PlayMusicTool.descriptor
+    override val riskLevel: RiskLevel = RiskLevel.REVERSIBLE_SIDE_EFFECT
+
+    override suspend fun execute(ctx: ToolContext, argumentsJson: String): Result<ToolOutcome> {
+        val parsed = try {
+            val o = Json.decodeFromString<JsonObject>(argumentsJson.ifBlank { "{}" })
+            val query = o["query"]?.jsonPrimitive?.contentOrNull
+                ?.takeIf { it.isNotBlank() && it != "null" }
+                ?: return Result.Failure(DomainError(ErrorKind.ProviderInvalidResponse, "缺少 query"))
+            val app = o["app"]?.jsonPrimitive?.contentOrNull
+                ?.takeIf { it.isNotBlank() && it != "null" }
+                ?: "netease"
+            PlayMusicTool.Args(query = query, app = app)
+        } catch (_: Exception) {
+            return Result.Failure(DomainError(ErrorKind.ProviderInvalidResponse, "参数解析失败"))
+        }
+
+        return when (val res = backend.play(parsed.query.trim(), parsed.app)) {
+            is Result.Success -> Result.Success(
+                ToolOutcome.SideEffect(
+                    summary = res.data,
+                    expectedPackageNames = setOf("com.netease.cloudmusic"),
+                    expectedText = parsed.query.take(20),
+                    irreversible = false,
+                    launchedByIntent = true,
+                ),
+            )
+            is Result.Failure -> Result.Success(ToolOutcome.Failure(res.error))
+        }
     }
 }

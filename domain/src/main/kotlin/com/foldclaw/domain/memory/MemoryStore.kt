@@ -14,6 +14,6 @@ interface MemoryStore {
     suspend fun upsert(key: String, value: String): MemoryItem
     suspend fun deleteByKey(key: String): Boolean
     suspend fun deleteById(id: Long): Boolean
-    suspend fun list(limit: Int = 50): List<MemoryItem>
+    suspend fun list(limit: Int = 50): List<MemoryItem> // 备份时可传更大 limit
     suspend fun promptBlock(limit: Int = 20): String
 }

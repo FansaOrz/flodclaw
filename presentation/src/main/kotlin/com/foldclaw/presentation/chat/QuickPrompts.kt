@@ -16,6 +16,8 @@ object QuickPrompts {
         QuickPrompt("C1", "设闹钟", "设置一个明天下午三点的闹钟"),
         QuickPrompt("K1", "建日程", "明天下午三点建一个团队会议日程"),
         QuickPrompt("K4", "查天气", "明天北京的天气怎么样"),
+        QuickPrompt("W1", "搜演出", "北京鸟巢今天有没有演唱会"),
+        QuickPrompt("U1", "放歌", "用网易云播放陶喆的普通朋友"),
         QuickPrompt("A1", "读界面", "读取当前屏幕界面结构"),
         QuickPrompt("D1", "设备状态", "读一下当前设备状态摘要"),
         QuickPrompt("N1", "通知摘要", "摘要一下最近通知"),

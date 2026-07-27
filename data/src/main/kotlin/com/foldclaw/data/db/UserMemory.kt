@@ -71,7 +71,7 @@ class RoomMemoryStore @Inject constructor(
         dao.deleteById(id) > 0
 
     override suspend fun list(limit: Int): List<MemoryItem> =
-        dao.list(limit.coerceIn(1, 100)).map {
+        dao.list(limit.coerceIn(1, 1000)).map {
             MemoryItem(it.id, it.key, it.value, it.epochMs)
         }
 

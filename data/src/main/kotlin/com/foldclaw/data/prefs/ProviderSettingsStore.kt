@@ -23,6 +23,8 @@ data class LlmSettings(
     val workspaceId: String = "",
     /** 是否已配置过 Key（不暴露明文）。 */
     val hasApiKey: Boolean = false,
+    /** 任务成功后是否用系统 TTS 念出结果。默认开启以保持既有行为。 */
+    val ttsSpeakResults: Boolean = true,
 )
 
 @Singleton
@@ -35,6 +37,7 @@ class ProviderSettingsStore @Inject constructor(
     private val modelKey = stringPreferencesKey("model_id")
     private val presetKey = stringPreferencesKey("preset")
     private val workspaceKey = stringPreferencesKey("workspace_id")
+    private val ttsSpeakResultsKey = booleanPreferencesKey("tts_speak_results")
 
     val settingsFlow: Flow<LlmSettings> = context.providerSettingsStore.data.map { prefs ->
         val rawBase = prefs[baseUrlKey]
@@ -67,6 +70,7 @@ class ProviderSettingsStore @Inject constructor(
             modelId = modelId,
             preset = preset,
             workspaceId = workspaceId,
+            ttsSpeakResults = prefs[ttsSpeakResultsKey] ?: true,
         )
     }
 
@@ -87,6 +91,12 @@ class ProviderSettingsStore @Inject constructor(
             prefs[providerKey] = providerId
             prefs[presetKey] = preset
             prefs[workspaceKey] = workspaceId.trim()
+        }
+    }
+
+    suspend fun setTtsSpeakResults(enabled: Boolean) {
+        context.providerSettingsStore.edit { prefs ->
+            prefs[ttsSpeakResultsKey] = enabled
         }
     }
 }

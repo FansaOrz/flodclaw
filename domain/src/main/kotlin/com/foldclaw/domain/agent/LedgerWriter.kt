@@ -19,4 +19,6 @@ interface LedgerWriter {
     suspend fun writeVerification(taskId: String, step: Int, ok: Boolean)
     /** 记录已执行的工具名，便于历史与「打开应用检查」。 */
     suspend fun writeTool(taskId: String, step: Int, toolName: String, outcome: String)
+    /** 写入展示给用户的助手回复，供重启后恢复对话。 */
+    suspend fun writeReply(taskId: String, message: String)
 }

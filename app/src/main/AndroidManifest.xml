@@ -19,6 +19,8 @@
         <package android:name="com.taobao.taobao" />
         <package android:name="com.tencent.mm" />
         <package android:name="com.eg.android.AlipayGphone" />
+        <package android:name="com.netease.cloudmusic" />
+        <package android:name="com.tencent.qqmusic" />
     </queries>
 
     <application

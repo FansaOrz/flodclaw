@@ -1,21 +1,27 @@
 package com.foldclaw.presentation.settings
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.foldclaw.data.keystore.KeyVault
 import com.foldclaw.data.llm.ProviderRouter
 import com.foldclaw.data.prefs.LlmProviderDefaults
 import com.foldclaw.data.prefs.ProviderSettingsStore
+import com.foldclaw.domain.backup.DataBackupService
 import com.foldclaw.domain.memory.MemoryItem
 import com.foldclaw.domain.memory.MemoryStore
 import com.foldclaw.domain.model.Result
 import com.foldclaw.domain.tool.NotificationSummaryBackend
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 data class SettingsUiState(
@@ -26,21 +32,25 @@ data class SettingsUiState(
     val modelId: String = LlmProviderDefaults.DEFAULT_MODEL,
     val apiKeyInput: String = "",
     val hasApiKey: Boolean = false,
+    val ttsSpeakResults: Boolean = true,
     val statusMessage: String? = null,
     val statusIsError: Boolean = false,
     val isSaving: Boolean = false,
     val isTesting: Boolean = false,
     val memories: List<MemoryItem> = emptyList(),
     val notificationAccessGranted: Boolean = false,
+    val isBackingUp: Boolean = false,
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val settingsStore: ProviderSettingsStore,
     private val keyVault: KeyVault,
     private val providerRouter: ProviderRouter,
     private val memoryStore: MemoryStore,
     private val notificationBackend: NotificationSummaryBackend,
+    private val backupService: DataBackupService,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -58,6 +68,7 @@ class SettingsViewModel @Inject constructor(
                         baseUrl = s.baseUrl,
                         modelId = s.modelId,
                         hasApiKey = hasKey,
+                        ttsSpeakResults = s.ttsSpeakResults,
                         apiKeyInput = if (hasKey && it.apiKeyInput.isBlank()) "" else it.apiKeyInput,
                         notificationAccessGranted = notificationBackend.isAccessGranted(),
                     )
@@ -88,7 +99,79 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /** 导出记忆 + 模型设置（不含 API Key）到用户选择的文件。 */
+    fun exportBackup(uri: Uri) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isBackingUp = true, statusMessage = null) }
+            try {
+                val text = backupService.exportJson()
+                withContext(Dispatchers.IO) {
+                    appContext.contentResolver.openOutputStream(uri)?.use { out ->
+                        out.write(text.toByteArray(Charsets.UTF_8))
+                    } ?: error("无法写入所选文件")
+                }
+                _uiState.update {
+                    it.copy(
+                        isBackingUp = false,
+                        statusIsError = false,
+                        statusMessage = "已导出备份（含记忆与模型设置；不含 API Key）",
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isBackingUp = false,
+                        statusIsError = true,
+                        statusMessage = "导出失败: ${e.message}",
+                    )
+                }
+            }
+        }
+    }
+
+    /** 从备份文件合并导入记忆，并恢复模型设置。 */
+    fun importBackup(uri: Uri) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isBackingUp = true, statusMessage = null) }
+            try {
+                val text = withContext(Dispatchers.IO) {
+                    appContext.contentResolver.openInputStream(uri)?.use {
+                        it.readBytes().toString(Charsets.UTF_8)
+                    } ?: error("无法读取所选文件")
+                }
+                val result = backupService.importJson(text, mergeMemories = true)
+                refreshMemories()
+                _uiState.update {
+                    it.copy(
+                        isBackingUp = false,
+                        statusIsError = false,
+                        statusMessage = buildString {
+                            append("已导入 ${result.memoriesUpserted} 条记忆")
+                            if (result.settingsApplied) append("，并恢复模型设置")
+                            append("。API Key 需在本机重新填写。")
+                        },
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isBackingUp = false,
+                        statusIsError = true,
+                        statusMessage = "导入失败: ${e.message}",
+                    )
+                }
+            }
+        }
+    }
+
     fun onUseRealApiChange(v: Boolean) = _uiState.update { it.copy(useRealApi = v, statusMessage = null) }
+
+    fun onTtsSpeakResultsChange(v: Boolean) {
+        _uiState.update { it.copy(ttsSpeakResults = v) }
+        viewModelScope.launch {
+            settingsStore.setTtsSpeakResults(v)
+        }
+    }
 
     fun onPresetChange(preset: String) {
         _uiState.update { state ->

@@ -7,7 +7,7 @@ object GetUiTreeTool {
 
     val descriptor = ToolDescriptor(
         name = NAME,
-        description = "读取当前前台窗口的 UI 树摘要（裁剪后文本）。跨 App 操作前应先调用以获取 nodeId。",
+        description = "读取当前前台窗口的 UI 树摘要（已优先保留搜索框/可编辑/播放相关节点）。跨 App 操作前应先调用以获取 nodeId。",
         parametersJsonSchema = """
 {
   "type": "object",
@@ -42,7 +42,7 @@ object TypeTextTool {
 
     val descriptor = ToolDescriptor(
         name = NAME,
-        description = "向可编辑节点输入文本。禁止输入密码/验证码/支付信息。可传 nodeId 或先聚焦的编辑框。",
+        description = "向可编辑节点输入文本（搜索框/输入框，带 E 标记）。禁止输入密码/验证码/支付信息。可传 nodeId；不传则使用当前第一个可编辑框。输入后若未出结果，再 tap「搜索」或结果项。",
         parametersJsonSchema = """
 {
   "type": "object",
@@ -61,7 +61,7 @@ object SwipeTool {
 
     val descriptor = ToolDescriptor(
         name = NAME,
-        description = "在屏幕上滑动。direction: up/down/left/right。",
+        description = "在屏幕上滑动。direction: up/down/left/right。仅当目标可能在列表更下方时使用；播放歌曲/找歌手时禁止反复上下滑首页，应先点「搜索」。",
         parametersJsonSchema = """
 {
   "type": "object",
