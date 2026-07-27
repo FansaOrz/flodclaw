@@ -1,10 +1,23 @@
-# FoldClaw
+# FoldSuite
+
+单仓多 App 工程。当前产品：
+
+| App | applicationId | 说明 |
+|-----|---------------|------|
+| **FoldClaw** | `com.foldclaw` | Z Fold 个人侧载 AI Agent |
+| **FoldPods** | `com.foldpods` | AirPods Pro 伴侣（壳，能力待接入） |
+
+跨产品只共享 `shared/*` 与 Gradle 约定；业务互不 compile 依赖。详见 [docs/multi-app.md](docs/multi-app.md)。
+
+---
+
+## FoldClaw
 
 三星 Z Fold 上的**个人侧载手机原生 AI Agent**。用自然语言驱动本机操作：设闹钟、建日程、改系统设置、读界面点击、开应用关代理等。
 
 云端 LLM 负责规划，手机负责感知、策略、执行与 UI。无 PC Gateway。
 
-## 能力概览
+### 能力概览
 
 | 类型 | 示例 |
 |------|------|
@@ -19,16 +32,17 @@
 
 刻意不做：Wi‑Fi / 手电筒等控制台已有的琐碎开关。
 
-## 模块结构
+### 模块结构（FoldClaw）
 
 ```
-app/           入口与 DI
-presentation/  Compose UI
-agent/         编排器（observe → plan → policy → execute）
-domain/        领域模型与工具契约
-data/          LLM、Room 账本、Keystore、ASR
-device/        无障碍、Intent、FGS、悬窗、通知监听、TTS
-policy/        能力信封与审批
+apps/foldclaw/                      入口与 DI
+products/foldclaw/presentation/     Compose UI
+products/foldclaw/agent/            编排器（observe → plan → policy → execute）
+products/foldclaw/domain/           领域模型与工具契约
+products/foldclaw/data/             LLM、Room 账本、Keystore、ASR
+products/foldclaw/device/           无障碍、Intent、FGS、悬窗、通知监听、TTS
+products/foldclaw/policy/           能力信封与审批
+shared/core|platform                跨 App 工具与 Intent 契约
 ```
 
 ## 环境要求
@@ -36,20 +50,27 @@ policy/        能力信封与审批
 - Android Studio / JDK 17
 - Android SDK 36，minSdk 31
 - 真机建议：Samsung One UI（已在 Z Fold 系列验证）
-- 无障碍服务：通用自动化必须开启
+- 无障碍服务：通用自动化必须开启（FoldClaw）
 - 语音识别：设置页配置百炼 API Key（与聊天共用）
 
 ## 快速开始
 
 ```bash
-# 编译 Debug 包
-./gradlew :app:assembleDebug
+# 编译全部 App Debug 包
+./gradlew assembleAllApps
 
-# 安装到已连接设备
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+# 或单独编译
+./gradlew :apps:foldclaw:assembleDebug
+./gradlew :apps:airpods:assembleDebug
+
+# 安装 FoldClaw（覆盖安装，保留数据）
+adb install -r apps/foldclaw/build/outputs/apk/debug/*.apk
+
+# 安装 FoldPods 壳
+adb install -r apps/airpods/build/outputs/apk/debug/*.apk
 ```
 
-首次打开：
+### FoldClaw 首次打开
 
 1. 按引导开启 **FoldClaw 无障碍服务**
 2. 在设置页填入百炼 API Key（存 Keystore，不进仓库）
@@ -76,7 +97,7 @@ Debug 包名为 `com.foldclaw.debug`。记忆/设置存在 App 私有目录，**
 - 日常更新：始终 `adb install -r …`（覆盖安装），**不要先 uninstall**
 - 换签名/换包名等于新 App，数据不会自动带过来
 - 设置页提供 **导出/导入备份**（JSON：个人记忆 + 模型设置；不含 API Key）
-- 两个工程树（如本仓库与另一份 fork）只要 `applicationId` 与签名一致，覆盖安装可保留数据；否则请先导出再导入
+- 两个工程树只要 `applicationId` 与签名一致，覆盖安装可保留数据；否则请先导出再导入
 
 ## 安全说明
 
@@ -88,6 +109,7 @@ Debug 包名为 `com.foldclaw.debug`。记忆/设置存在 App 私有目录，**
 
 ## 文档
 
+- 多 App 接入与跨 App 契约：`docs/multi-app.md`
 - 设计与对抗审查：`fold-ai-agent-plan-review.md`
 - 兼容矩阵：`docs/compat-matrix.md`
 

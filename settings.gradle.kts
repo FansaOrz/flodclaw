@@ -1,4 +1,5 @@
 pluginManagement {
+    includeBuild("build-logic")
     repositories {
         google {
             content {
@@ -20,13 +21,22 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "FoldClaw"
+rootProject.name = "FoldSuite"
 
-include(":app")
-include(":core")
-include(":domain")
-include(":data")
-include(":agent")
-include(":policy")
-include(":device")
-include(":presentation")
+// Shared
+include(":shared:core")
+include(":shared:platform")
+
+// FoldClaw product
+include(":apps:foldclaw")
+include(":products:foldclaw:domain")
+include(":products:foldclaw:data")
+include(":products:foldclaw:agent")
+include(":products:foldclaw:policy")
+include(":products:foldclaw:device")
+include(":products:foldclaw:presentation")
+
+// AirPods companion product
+include(":apps:airpods")
+include(":products:airpods:domain")
+include(":products:airpods:presentation")

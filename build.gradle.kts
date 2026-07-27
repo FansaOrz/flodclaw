@@ -9,3 +9,12 @@ plugins {
     alias(libs.plugins.kapt) apply false
     alias(libs.plugins.hilt) apply false
 }
+
+tasks.register("assembleAllApps") {
+    group = "build"
+    description = "Assemble debug APKs for every app under :apps"
+    dependsOn(
+        ":apps:foldclaw:assembleDebug",
+        ":apps:airpods:assembleDebug",
+    )
+}
