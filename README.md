@@ -6,6 +6,7 @@
 |-----|---------------|------|
 | **FoldClaw** | `com.foldclaw` | Z Fold 个人侧载 AI Agent |
 | **FoldPods** | `com.foldpods` | AirPods Pro 伴侣（P0–P3 能力见 `docs/foldpods-capabilities.md`） |
+| **FoldLedger** | `com.foldledger` | Fold 个人侧载自动记账 |
 
 跨产品只共享 `shared/*` 与 Gradle 约定；业务互不 compile 依赖。详见 [docs/multi-app.md](docs/multi-app.md)。
 
@@ -62,12 +63,20 @@ shared/core|platform                跨 App 工具与 Intent 契约
 # 或单独编译
 ./gradlew :apps:foldclaw:assembleDebug
 ./gradlew :apps:airpods:assembleDebug
+./gradlew :apps:ledger:assembleDebug
 
 # 安装 FoldClaw（覆盖安装，保留数据）
 adb install -r apps/foldclaw/build/outputs/apk/debug/*.apk
 
 # 安装 FoldPods 壳
 adb install -r apps/airpods/build/outputs/apk/debug/*.apk
+
+# 安装 FoldLedger
+adb install -r apps/ledger/build/outputs/apk/debug/*.apk
+
+# 构建并排测试版（com.foldledger.next，不覆盖已有账本）
+./gradlew :apps:ledger:assembleNext
+adb install -r apps/ledger/build/outputs/apk/next/ledger-next.apk
 ```
 
 ### FoldClaw 首次打开
@@ -77,6 +86,14 @@ adb install -r apps/airpods/build/outputs/apk/debug/*.apk
 3. （可选）开启通知使用权以使用通知摘要
 4. （可选）设为默认数字助理，并在快捷设置添加「FoldClaw 开麦」
 5. 对话、语音或点快捷芯片下发任务
+
+### FoldLedger 首次打开
+
+1. 开启通知使用权，用于捕获微信/支付宝支付通知
+2. 开启 FoldLedger 无障碍，用于补全支付宝成功页
+3. 按需授予悬浮窗、短信和忽略电池优化权限
+4. 设置页可切换「全自动入库」；真机验收见
+   [FoldLedger Fold 7 验收清单](docs/foldledger-fold7-verify.md)
 
 ## 常用指令示例
 

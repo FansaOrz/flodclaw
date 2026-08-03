@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/overlay_card_background"
+    android:elevation="18dp"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/overlayTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="sans-serif-medium"
+            android:letterSpacing="0.12"
+            android:text="FOLDLEDGER · 已识别"
+            android:textColor="#4C6460"
+            android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/btnLater"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/overlay_icon_button_background"
+            android:contentDescription="稍后处理"
+            android:gravity="center"
+            android:text="×"
+            android:textColor="#4C6460"
+            android:textSize="24sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/overlayAmount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:fontFamily="sans-serif-medium"
+        android:includeFontPadding="false"
+        android:textColor="#111318"
+        android:textSize="36sp" />
+
+    <TextView
+        android:id="@+id/overlayMerchant"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:ellipsize="end"
+        android:fontFamily="sans-serif-medium"
+        android:maxLines="2"
+        android:textColor="#111318"
+        android:textSize="18sp" />
+
+    <TextView
+        android:id="@+id/overlaySource"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/overlay_source_pill_background"
+        android:fontFamily="sans-serif-medium"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="6dp"
+        android:textColor="#176B61"
+        android:textSize="12sp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:text="请核对金额与商户。确认后才会写入账本。"
+        android:textColor="#626A68"
+        android:textSize="12sp" />
+
+    <Button
+        android:id="@+id/btnConfirm"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginTop="18dp"
+        android:background="@drawable/overlay_primary_button_background"
+        android:backgroundTint="@null"
+        android:fontFamily="sans-serif-medium"
+        android:stateListAnimator="@null"
+        android:text="确认记账"
+        android:textAllCaps="false"
+        android:textColor="#0D302C"
+        android:textSize="15sp" />
+
+    <Button
+        android:id="@+id/btnReview"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/overlay_secondary_button_background"
+        android:backgroundTint="@null"
+        android:fontFamily="sans-serif-medium"
+        android:stateListAnimator="@null"
+        android:text="打开应用核对"
+        android:textAllCaps="false"
+        android:textColor="#31343C"
+        android:textSize="14sp" />
+</LinearLayout>

@@ -42,3 +42,10 @@ include(":products:airpods:domain")
 include(":products:airpods:bluetooth")
 include(":products:airpods:data")
 include(":products:airpods:presentation")
+
+// FoldLedger product
+include(":apps:ledger")
+include(":products:ledger:domain")
+include(":products:ledger:data")
+include(":products:ledger:capture")
+include(":products:ledger:presentation")

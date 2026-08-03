@@ -29,7 +29,7 @@ apps/_template/            # 拷贝用脚手架（不 include）
 5. 各 App 独立 `@HiltAndroidApp`
 6. 若需被其他 App 打开：在 Manifest 声明 `CrossAppIntents` 中的 action，并在 `CrossAppIds` 登记 package
 7. `./gradlew :apps:<id>:assembleDebug`
-8. 把该任务加入根项目 `assembleAllApps`
+8. 运行根项目 `assembleAllApps`，确认新 App 已被自动发现
 
 ## 编译命令
 
@@ -40,18 +40,21 @@ apps/_template/            # 拷贝用脚手架（不 include）
 # 单独
 ./gradlew :apps:foldclaw:assembleDebug
 ./gradlew :apps:airpods:assembleDebug
+./gradlew :apps:ledger:assembleDebug
 ```
 
 APK 路径：
 
-- `apps/foldclaw/build/outputs/apk/debug/foldclaw-debug.apk
+- `apps/foldclaw/build/outputs/apk/debug/foldclaw-debug.apk`
 - `apps/airpods/build/outputs/apk/debug/airpods-debug.apk`
+- `apps/ledger/build/outputs/apk/debug/ledger-debug.apk`
 
 安装（保留数据请用 `-r`）：
 
 ```bash
 adb install -r apps/foldclaw/build/outputs/apk/debug/*.apk
 adb install -r apps/airpods/build/outputs/apk/debug/*.apk
+adb install -r apps/ledger/build/outputs/apk/debug/*.apk
 ```
 
 ## 跨 App 调用示例（调用方）

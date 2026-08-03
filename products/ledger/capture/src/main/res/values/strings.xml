@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="a11y_description">FoldLedger 只读识别支付宝/微信的支付或转账成功页金额与对方，不会点击或代操作支付。</string>
+</resources>

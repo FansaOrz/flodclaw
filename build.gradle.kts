@@ -13,8 +13,8 @@ plugins {
 tasks.register("assembleAllApps") {
     group = "build"
     description = "Assemble debug APKs for every app under :apps"
-    dependsOn(
-        ":apps:foldclaw:assembleDebug",
-        ":apps:airpods:assembleDebug",
-    )
+    val appModules = subprojects.filter {
+        it.path.startsWith(":apps:") && it.path.count { character -> character == ':' } == 2
+    }
+    dependsOn(appModules.map { "${it.path}:assembleDebug" })
 }

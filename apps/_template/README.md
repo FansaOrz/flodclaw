@@ -9,7 +9,7 @@
    - `include(":products:<id>:domain")` …
 4. 改 `applicationId` / `namespace` / 图标 / 主题
 5. 只依赖 `:shared:core`、`:shared:platform` 与自己的 `:products:<id>:*`
-6. 根 `build.gradle.kts` 的 `assembleAllApps` 增加依赖
-7. `./gradlew :apps:<id>:assembleDebug`
+6. `./gradlew :apps:<id>:assembleDebug`
+7. `./gradlew assembleAllApps`，确认根任务可自动发现新 App
 
 完整规则见 [docs/multi-app.md](../../docs/multi-app.md)。
