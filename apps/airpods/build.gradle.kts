@@ -21,6 +21,8 @@ android {
 
 dependencies {
     implementation(project(":products:airpods:domain"))
+    implementation(project(":products:airpods:bluetooth"))
+    implementation(project(":products:airpods:data"))
     implementation(project(":products:airpods:presentation"))
     implementation(project(":shared:core"))
     implementation(project(":shared:platform"))

@@ -39,4 +39,6 @@ include(":products:foldclaw:presentation")
 // AirPods companion product
 include(":apps:airpods")
 include(":products:airpods:domain")
+include(":products:airpods:bluetooth")
+include(":products:airpods:data")
 include(":products:airpods:presentation")

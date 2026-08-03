@@ -5,7 +5,7 @@
 | App | applicationId | 说明 |
 |-----|---------------|------|
 | **FoldClaw** | `com.foldclaw` | Z Fold 个人侧载 AI Agent |
-| **FoldPods** | `com.foldpods` | AirPods Pro 伴侣（壳，能力待接入） |
+| **FoldPods** | `com.foldpods` | AirPods Pro 伴侣（P0–P3 能力见 `docs/foldpods-capabilities.md`） |
 
 跨产品只共享 `shared/*` 与 Gradle 约定；业务互不 compile 依赖。详见 [docs/multi-app.md](docs/multi-app.md)。
 
@@ -110,6 +110,7 @@ Debug 包名为 `com.foldclaw.debug`。记忆/设置存在 App 私有目录，**
 ## 文档
 
 - 多 App 接入与跨 App 契约：`docs/multi-app.md`
+- FoldPods 能力分级：`docs/foldpods-capabilities.md`
 - 设计与对抗审查：`fold-ai-agent-plan-review.md`
 - 兼容矩阵：`docs/compat-matrix.md`
 

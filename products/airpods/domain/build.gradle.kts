@@ -6,4 +6,6 @@ dependencies {
     implementation(project(":shared:core"))
     implementation(project(":shared:platform"))
     implementation(libs.coroutines.core)
+
+    testImplementation(libs.junit)
 }
